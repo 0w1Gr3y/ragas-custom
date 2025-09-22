@@ -68,11 +68,14 @@ class HeadlineSplitter(Splitter):
         if len(chunks) == 1:
             return [node], []
 
-        # create the nodes
-        nodes = [
-            Node(type=NodeType.CHUNK, properties={"page_content": chunk})
-            for chunk in chunks
-        ]
+        # create the nodes - preserve metadata from parent document
+        nodes = []
+        for chunk in chunks:
+            chunk_properties = {"page_content": chunk}
+            # Copy document_metadata from parent node to preserve metadata
+            if "document_metadata" in node.properties:
+                chunk_properties["document_metadata"] = node.properties["document_metadata"]
+            nodes.append(Node(type=NodeType.CHUNK, properties=chunk_properties))
 
         # create the relationships for children
         relationships = []

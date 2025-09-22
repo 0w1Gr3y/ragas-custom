@@ -80,6 +80,12 @@ class SingleTurnSample(BaseSample):
     multi_responses: t.Optional[t.List[str]] = None
     reference: t.Optional[str] = None
     rubrics: t.Optional[t.Dict[str, str]] = None
+    
+    # Custom metadata fields for document traceability
+    doc_chunk_ids: t.Optional[t.List[str]] = None
+    expected_source_urls: t.Optional[t.List[str]] = None
+    source_metadata: t.Optional[t.List[t.Dict[str, t.Any]]] = None
+    num_chunks: t.Optional[int] = None
 
 
 class MultiTurnSample(BaseSample):

@@ -126,12 +126,37 @@ class SingleHopQuerySynthesizer(BaseSynthesizer[Scenario]):
             context=reference_context,
             query_length=scenario.length.value,
             query_style=scenario.style.value,
+            seed_prompt=getattr(scenario, 'seed_prompt', None),
         )
         response = await self.generate_query_reference_prompt.generate(
             data=prompt_input, llm=self.llm, callbacks=callbacks
         )
-        return SingleTurnSample(
+        # Extract metadata from scenario node
+        node_metadata = scenario.nodes[0].properties.get("document_metadata", {})
+        # Handle double-nested document_metadata structure
+        if isinstance(node_metadata, dict) and "document_metadata" in node_metadata:
+            node_metadata = node_metadata["document_metadata"]
+        
+        # Create sample with metadata using Pydantic fields
+        if node_metadata:
+            doc_chunk_ids = [node_metadata.get("chunk_id")] if node_metadata.get("chunk_id") else []
+            expected_source_urls = [node_metadata.get("source")] if node_metadata.get("source") else []
+            source_metadata = [node_metadata]
+            num_chunks = 1
+        else:
+            doc_chunk_ids = []
+            expected_source_urls = []
+            source_metadata = []
+            num_chunks = 0
+            
+        sample = SingleTurnSample(
             user_input=response.query,
             reference=response.answer,
             reference_contexts=[reference_context],
+            doc_chunk_ids=doc_chunk_ids,
+            expected_source_urls=expected_source_urls,
+            source_metadata=source_metadata,
+            num_chunks=num_chunks,
         )
+            
+        return sample

@@ -54,12 +54,15 @@ class BaseScenario(BaseModel):
         The length of the query.
     persona : Persona
         A persona associated with the scenario.
+    seed_prompt : Optional[str]
+        Additional prompt to guide question generation.
     """
 
     nodes: t.List[Node]
     style: QueryStyle
     length: QueryLength
     persona: Persona
+    seed_prompt: t.Optional[str] = None
 
 
 Scenario = t.TypeVar("Scenario", bound=BaseScenario)

@@ -159,7 +159,7 @@ class OverlapScoreBuilder(RelationshipBuilder):
                                 verdict = similarity >= self.distance_threshold
                                 overlaps.append(verdict)
                                 if verdict:
-                                    overlapped_items.append((x, y))
+                                    overlapped_items.extend([x, y])  # Add both, handle dedup later
 
                 similarity = self._overlap_score(overlaps)
                 if similarity >= self.threshold:
@@ -170,7 +170,7 @@ class OverlapScoreBuilder(RelationshipBuilder):
                             type=f"{self.property_name}_overlap",
                             properties={
                                 f"{self.property_name}_{self.new_property_name}": similarity,
-                                "overlapped_items": overlapped_items,
+                                "overlapped_items": list(set(overlapped_items)),  # Remove duplicates
                             },
                         )
                     )

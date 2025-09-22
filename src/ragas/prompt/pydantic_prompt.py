@@ -207,15 +207,28 @@ class PydanticPrompt(BasePrompt, t.Generic[InputModel, OutputModel]):
         # LangChain LLMs have agenerate() for async, generate() for sync
         # Ragas LLMs have generate() as async method
         if is_langchain_llm(llm):
-            # This is a LangChain LLM - use agenerate_prompt() with batch for multiple generations
+            # This is a LangChain LLM - use structured output
             langchain_llm = t.cast(BaseLanguageModel, llm)
-            # LangChain doesn't support n parameter directly, so we batch multiple prompts
-            prompts = t.cast(t.List[t.Any], [prompt_value for _ in range(n)])
-            resp = await langchain_llm.agenerate_prompt(
-                prompts,
-                stop=stop,
-                callbacks=prompt_cb,
-            )
+            
+            # Use with_structured_output for guaranteed schema compliance
+            structured_llm = langchain_llm.with_structured_output(self.output_model)
+            # Generate outputs using structured output
+            structured_outputs = []
+            for _ in range(n):
+                structured_output = await structured_llm.ainvoke(
+                    prompt_value.text,
+                    config={"callbacks": prompt_cb, "stop": stop}
+                )
+                structured_outputs.append(structured_output)
+            
+            # Process structured outputs directly (no parsing needed)
+            output_models = []
+            for structured_output in structured_outputs:
+                processed_output = self.process_output(structured_output, data)  # type: ignore
+                output_models.append(processed_output)
+            
+            prompt_rm.on_chain_end({"output": output_models})
+            return output_models
         else:
             # This is a Ragas LLM - use generate()
             ragas_llm = t.cast(BaseRagasLLM, llm)

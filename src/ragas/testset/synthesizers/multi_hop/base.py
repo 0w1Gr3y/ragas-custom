@@ -165,15 +165,46 @@ class MultiHopQuerySynthesizer(BaseSynthesizer[Scenario]):
             context=reference_context,
             query_length=scenario.length.value,
             query_style=scenario.style.value,
+            seed_prompt=getattr(scenario, 'seed_prompt', None),
         )
         response = await self.generate_query_reference_prompt.generate(
             data=prompt_input, llm=self.llm, callbacks=callbacks
         )
-        return SingleTurnSample(
+        # Extract metadata from all scenario nodes
+        metadata_list = []
+        for node in scenario.nodes:
+            node_metadata = node.properties.get("document_metadata", {})
+            # Handle double-nested document_metadata structure
+            if isinstance(node_metadata, dict) and "document_metadata" in node_metadata:
+                node_metadata = node_metadata["document_metadata"]
+            if node_metadata:
+                metadata_list.append(node_metadata)
+        
+        # Create sample with aggregated metadata using Pydantic fields
+        if metadata_list:
+            chunk_ids = [meta.get("chunk_id") for meta in metadata_list if meta.get("chunk_id")]
+            source_urls = [meta.get("source") for meta in metadata_list if meta.get("source")]
+            doc_chunk_ids = chunk_ids
+            expected_source_urls = source_urls
+            source_metadata = metadata_list
+            num_chunks = len(chunk_ids)
+        else:
+            doc_chunk_ids = []
+            expected_source_urls = []
+            source_metadata = []
+            num_chunks = len(scenario.nodes)  # Fallback: count scenario nodes for multi-hop
+            
+        sample = SingleTurnSample(
             user_input=response.query,
             reference=response.answer,
             reference_contexts=reference_context,
+            doc_chunk_ids=doc_chunk_ids,
+            expected_source_urls=expected_source_urls,
+            source_metadata=source_metadata,
+            num_chunks=num_chunks,
         )
+            
+        return sample
 
     def make_contexts(self, scenario: MultiHopScenario) -> t.List[str]:
         contexts = []

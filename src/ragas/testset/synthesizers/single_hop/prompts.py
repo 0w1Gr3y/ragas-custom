@@ -12,6 +12,7 @@ class QueryCondition(BaseModel):
     query_style: str
     query_length: str
     context: str
+    seed_prompt: t.Optional[str] = None
 
 
 class GeneratedQueryAnswer(BaseModel):
@@ -29,7 +30,33 @@ class QueryAnswerGenerationPrompt(PydanticPrompt[QueryCondition, GeneratedQueryA
         "that aligns with the persona's perspective and incorporates the term.\n"
         "2. **Generate an Answer**: Using only the content from the provided context, construct a detailed answer "
         "to the query. Do not add any information not included in or inferable from the context.\n"
+        "{seed_prompt_instruction}"
     )
+    
+    def to_string(self, data: t.Optional[QueryCondition] = None) -> str:
+        # Format instruction with seed_prompt if provided
+        instruction = self.instruction
+        if data and data.seed_prompt:
+            seed_prompt_instruction = f"\n### Additional Guidelines:\n{data.seed_prompt}\n"
+        else:
+            seed_prompt_instruction = ""
+        
+        instruction = instruction.format(seed_prompt_instruction=seed_prompt_instruction)
+        
+        return (
+            f"{instruction}\n"
+            + self._generate_output_signature()
+            + "\n"
+            + self._generate_examples()
+            + "\n-----------------------------\n"
+            + "\nNow perform the same with the following input\n"
+            + (
+                "input: " + data.model_dump_json(indent=4, exclude_none=True) + "\n"
+                if data is not None
+                else "Input: (None)\n"
+            )
+            + "Output: "
+        )
     input_model: t.Type[QueryCondition] = QueryCondition
     output_model: t.Type[GeneratedQueryAnswer] = GeneratedQueryAnswer
     examples: t.List[t.Tuple[QueryCondition, GeneratedQueryAnswer]] = [
